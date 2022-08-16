@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ftp="http://www.mulesoft.org/schema/mule/ftp" xmlns:validation="http://www.mulesoft.org/schema/mule/validation"
+	xmlns:file="http://www.mulesoft.org/schema/mule/file"
+	xmlns:sftp="http://www.mulesoft.org/schema/mule/sftp" xmlns:batch="http://www.mulesoft.org/schema/mule/batch" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:email="http://www.mulesoft.org/schema/mule/email" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd
+http://www.mulesoft.org/schema/mule/sftp http://www.mulesoft.org/schema/mule/sftp/current/mule-sftp.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd
+http://www.mulesoft.org/schema/mule/ftp http://www.mulesoft.org/schema/mule/ftp/current/mule-ftp.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="ab59cf1a-71f6-4d6d-9713-4d73fe73bfdf" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<email:smtp-config name="Email_SMTP" doc:name="Email SMTP" doc:id="db9486f8-d22c-4a93-b989-7f7c587a1454" >
+		<email:smtp-connection host="smtp.gmail.com" port="587" user="michaeltaye200@gmail.com" password="zeqaccfbhnvepbhu">
+			<email:properties >
+				<email:property key="mail.smtp.starttls.enable" value="true" />
+			</email:properties>
+		</email:smtp-connection>
+	</email:smtp-config>
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="f366fc1d-aa36-4128-b04b-1fb9412b4848" >
+		<db:my-sql-connection host="localhost" port="3306" user="root" database="mule_class_db" />
+	</db:config>
+	<sftp:config name="SFTP_Config" doc:name="SFTP Config" doc:id="2aff9cb2-cd72-484a-94dc-0efc2e125ac1" >
+		<sftp:connection host="192.168.0.38 " port="28" username="tester" password="password"/>
+	</sftp:config>
+	<file:config name="File_Config" doc:name="File Config" doc:id="97e7f49a-0f0c-4b94-88d3-af1875f03782" >
+		<file:connection/>
+	</file:config>
+	<validation:config name="Validation_Config" doc:name="Validation Config" doc:id="a599f1fb-97f5-4afc-abef-7aa6cc3a7ec0" />
+	<flow name="email_compFlow2" doc:id="f228e9ed-8ea3-4471-81f9-88a346da3af2" initialState="started">
+		<file:listener doc:name="On New or Updated File" doc:id="6b169a52-4a40-4043-a090-cbe974630fed" config-ref="File_Config" directory="C:\craft-SFTP\data\myProduct" watermarkMode="MODIFIED_TIMESTAMP">
+			<scheduling-strategy >
+				<fixed-frequency frequency="5000"/>
+			</scheduling-strategy>
+		</file:listener>
+		<ee:transform doc:name="Transform Message" doc:id="10cacde2-5030-468b-b69b-d4c2d93004a4">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+payload]]></ee:set-payload>
+			</ee:message>
+			<ee:variables />
+		</ee:transform>
+		<batch:job jobName="email_compBatch_Job" doc:id="c5f7f380-fcc9-44b4-b5da-e48ef1c8e6a7">
+			<batch:process-records >
+				<batch:step name="NO_FAILURES" doc:id="3b1bc1ab-8b31-43d3-b5fb-03a54b08f5e8">
+					<validation:matches-regex doc:name="Matches regex" doc:id="9ae80657-14c8-46aa-870b-3222f58375c9" config-ref="Validation_Config" value="#[payload.phone]" regex="^[+]*[(]{0,1}[0-9]{1,4}[)]{0,1}[-\s\./0-9]*$" message="Phone ERROR!" />
+					<logger level="INFO" doc:name="Logger" doc:id="9cb14ce2-fd23-4870-8ccb-a74014cb5266" message='#[payload]' />
+<batch:aggregator doc:name="Batch Aggregator" doc:id="54107bfd-edb9-4459-9632-ed03cd1aa9ce" size="2">
+						
+                        <set-variable value="\" doc:name="Set Variable" doc:id="6ab2c295-e316-4da9-bf83-a4e7af32752d" variableName="S" />
+					
+                    	<set-variable value='#[now() as String {format: "y-MM-dd"} as String ++ "-" ++ now().milliseconds as String ++ ".json" //2022-06-01-489.json]' doc:name="Set Variable" doc:id="8203ff5f-0f07-4d35-8f99-71986a2bcfe3" variableName="FileName" />
+						
+                        <file:write doc:name="Write" doc:id="9a4f0d88-66e6-4ac1-94aa-13c23d1f5929" config-ref="File_Config" path='#["C:\craft-SFTP\data\myProduct_Succ" ++ vars.S ++ vars.FileName]' mode="CREATE_NEW">
+						
+                        
+                        <file:content><![CDATA[#[%dw 2.0
+output application/json
+---
+payload]]]>
+
+</file:content>
+					
+                    </file:write>
+					
+                    </batch:aggregator>
+				
+				
+</batch:step>
+			</batch:process-records>
+		</batch:job>
+	</flow>
+</mule>
